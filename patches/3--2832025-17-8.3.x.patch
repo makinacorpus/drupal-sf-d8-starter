@@ -1,0 +1,674 @@
+commit 02c4aad375addcc0f54b35cf85ce3fe7d72cd02e
+Author: Pierre Rineau <pierre.rineau@makina-corpus.com>
+Date:   Thu Dec 1 14:16:55 2016 +0100
+
+    Issue #2832025 by pounard: Most code using the container builder are wrongly type-hinted
+
+diff --git a/core/lib/Drupal/Core/CoreServiceProvider.php b/core/lib/Drupal/Core/CoreServiceProvider.php
+index 8a22bc5..7e03131 100644
+--- a/core/lib/Drupal/Core/CoreServiceProvider.php
++++ b/core/lib/Drupal/Core/CoreServiceProvider.php
+@@ -6,29 +6,29 @@
+ use Drupal\Core\Cache\ListCacheBinsPass;
+ use Drupal\Core\DependencyInjection\Compiler\AuthenticationProviderPass;
+ use Drupal\Core\DependencyInjection\Compiler\BackendCompilerPass;
++use Drupal\Core\DependencyInjection\Compiler\ContextProvidersPass;
+ use Drupal\Core\DependencyInjection\Compiler\CorsCompilerPass;
++use Drupal\Core\DependencyInjection\Compiler\DependencySerializationTraitPass;
+ use Drupal\Core\DependencyInjection\Compiler\GuzzleMiddlewarePass;
+-use Drupal\Core\DependencyInjection\Compiler\ContextProvidersPass;
++use Drupal\Core\DependencyInjection\Compiler\ModifyServiceDefinitionsPass;
+ use Drupal\Core\DependencyInjection\Compiler\ProxyServicesPass;
++use Drupal\Core\DependencyInjection\Compiler\RegisterAccessChecksPass;
++use Drupal\Core\DependencyInjection\Compiler\RegisterEventSubscribersPass;
+ use Drupal\Core\DependencyInjection\Compiler\RegisterLazyRouteEnhancers;
+ use Drupal\Core\DependencyInjection\Compiler\RegisterLazyRouteFilters;
+-use Drupal\Core\DependencyInjection\Compiler\DependencySerializationTraitPass;
++use Drupal\Core\DependencyInjection\Compiler\RegisterServicesForDestructionPass;
++use Drupal\Core\DependencyInjection\Compiler\RegisterStreamWrappersPass;
+ use Drupal\Core\DependencyInjection\Compiler\StackedKernelPass;
+ use Drupal\Core\DependencyInjection\Compiler\StackedSessionHandlerPass;
+-use Drupal\Core\DependencyInjection\Compiler\RegisterStreamWrappersPass;
++use Drupal\Core\DependencyInjection\Compiler\TaggedHandlersPass;
+ use Drupal\Core\DependencyInjection\Compiler\TwigExtensionPass;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
+ use Drupal\Core\DependencyInjection\ServiceProviderInterface;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+-use Drupal\Core\DependencyInjection\Compiler\ModifyServiceDefinitionsPass;
+-use Drupal\Core\DependencyInjection\Compiler\TaggedHandlersPass;
+-use Drupal\Core\DependencyInjection\Compiler\RegisterEventSubscribersPass;
+-use Drupal\Core\DependencyInjection\Compiler\RegisterAccessChecksPass;
+-use Drupal\Core\DependencyInjection\Compiler\RegisterServicesForDestructionPass;
+ use Drupal\Core\Plugin\PluginManagerPass;
+ use Drupal\Core\Render\MainContent\MainContentRenderersPass;
+ use Drupal\Core\Site\Settings;
+ use Symfony\Component\DependencyInjection\Compiler\PassConfig;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * ServiceProvider class for mandatory core services.
+@@ -105,7 +105,7 @@ public function register(ContainerBuilder $container) {
+   /**
+    * Alters the UUID service to use the most efficient method available.
+    *
+-   * @param \Drupal\Core\DependencyInjection\ContainerBuilder $container
++   * @param \Symfony\Component\DependencyInjection\ContainerBuilder $container
+    *   The container builder.
+    */
+   public function alter(ContainerBuilder $container) {
+@@ -125,7 +125,7 @@ public function alter(ContainerBuilder $container) {
+   /**
+    * Registers services and event subscribers for a site under test.
+    *
+-   * @param \Drupal\Core\DependencyInjection\ContainerBuilder $container
++   * @param \Symfony\Component\DependencyInjection\ContainerBuilder $container
+    *   The container builder.
+    */
+   protected function registerTest(ContainerBuilder $container) {
+diff --git a/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php b/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php
+index e0becc7..e17b507 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php
++++ b/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php
+@@ -12,6 +12,10 @@
+ /**
+  * Drupal's dependency injection container builder.
+  *
++ * Please do not use this class to type-hint, it would break Symfony
++ * compatibility in some cases, please use
++ * Symfony\Component\DependencyInjection\ContainerBuilder instead.
++ *
+  * @todo Submit upstream patches to Symfony to not require these overrides.
+  *
+  * @ingroup container
+diff --git a/core/lib/Drupal/Core/DependencyInjection/ServiceModifierInterface.php b/core/lib/Drupal/Core/DependencyInjection/ServiceModifierInterface.php
+index 08c881e..7078b82 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/ServiceModifierInterface.php
++++ b/core/lib/Drupal/Core/DependencyInjection/ServiceModifierInterface.php
+@@ -2,6 +2,8 @@
+ 
+ namespace Drupal\Core\DependencyInjection;
+ 
++use Symfony\Component\DependencyInjection\ContainerBuilder;
++
+ /**
+  * Interface that service providers can implement to modify services.
+  *
+diff --git a/core/lib/Drupal/Core/DependencyInjection/ServiceProviderBase.php b/core/lib/Drupal/Core/DependencyInjection/ServiceProviderBase.php
+index 9dcf82c..0df4400 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/ServiceProviderBase.php
++++ b/core/lib/Drupal/Core/DependencyInjection/ServiceProviderBase.php
+@@ -2,6 +2,8 @@
+ 
+ namespace Drupal\Core\DependencyInjection;
+ 
++use Symfony\Component\DependencyInjection\ContainerBuilder;
++
+ /**
+  * Base service provider implementation.
+  *
+diff --git a/core/lib/Drupal/Core/DependencyInjection/ServiceProviderInterface.php b/core/lib/Drupal/Core/DependencyInjection/ServiceProviderInterface.php
+index f8cb491..8e320b3 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/ServiceProviderInterface.php
++++ b/core/lib/Drupal/Core/DependencyInjection/ServiceProviderInterface.php
+@@ -2,6 +2,8 @@
+ 
+ namespace Drupal\Core\DependencyInjection;
+ 
++use Symfony\Component\DependencyInjection\ContainerBuilder;
++
+ /**
+  * Interface that all service providers must implement.
+  *
+diff --git a/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php b/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php
+index da1c08c..bfea62c 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php
++++ b/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php
+@@ -6,11 +6,12 @@
+ use Drupal\Component\FileCache\FileCacheFactory;
+ use Drupal\Core\Serialization\Yaml;
+ use Symfony\Component\DependencyInjection\Alias;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\ContainerInterface;
+ use Symfony\Component\DependencyInjection\Definition;
+ use Symfony\Component\DependencyInjection\DefinitionDecorator;
+-use Symfony\Component\DependencyInjection\Reference;
+ use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
++use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+  * YamlFileLoader loads YAML files service definitions.
+@@ -31,7 +32,7 @@ class YamlFileLoader
+ {
+ 
+     /**
+-     * @var \Drupal\Core\DependencyInjection\ContainerBuilder $container
++     * @var \Symfony\Component\DependencyInjection\ContainerBuilder $container
+      */
+     protected $container;
+ 
+diff --git a/core/lib/Drupal/Core/Installer/InstallerServiceProvider.php b/core/lib/Drupal/Core/Installer/InstallerServiceProvider.php
+index 1ace991..225c68f 100644
+--- a/core/lib/Drupal/Core/Installer/InstallerServiceProvider.php
++++ b/core/lib/Drupal/Core/Installer/InstallerServiceProvider.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\Core\Installer;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+-use Drupal\Core\DependencyInjection\ServiceProviderInterface;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
++use Drupal\Core\DependencyInjection\ServiceProviderInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/lib/Drupal/Core/Update/UpdateServiceProvider.php b/core/lib/Drupal/Core/Update/UpdateServiceProvider.php
+index ad3d4df..3f2656f 100644
+--- a/core/lib/Drupal/Core/Update/UpdateServiceProvider.php
++++ b/core/lib/Drupal/Core/Update/UpdateServiceProvider.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\Core\Update;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
+ use Drupal\Core\DependencyInjection\ServiceProviderInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Definition;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+diff --git a/core/modules/hal/src/HalServiceProvider.php b/core/modules/hal/src/HalServiceProvider.php
+index d2b4028..c18e0b7 100644
+--- a/core/modules/hal/src/HalServiceProvider.php
++++ b/core/modules/hal/src/HalServiceProvider.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\hal;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Adds hal+json as known format.
+diff --git a/core/modules/help/tests/src/Kernel/HelpEmptyPageTest.php b/core/modules/help/tests/src/Kernel/HelpEmptyPageTest.php
+index 070a954..47495e0 100644
+--- a/core/modules/help/tests/src/Kernel/HelpEmptyPageTest.php
++++ b/core/modules/help/tests/src/Kernel/HelpEmptyPageTest.php
+@@ -2,10 +2,10 @@
+ 
+ namespace Drupal\Tests\help\Kernel;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\Routing\RouteMatch;
+ use Drupal\help_test\SupernovaGenerator;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests the empty HTML page.
+diff --git a/core/modules/image/tests/src/Kernel/ImageStyleCustomStreamWrappersTest.php b/core/modules/image/tests/src/Kernel/ImageStyleCustomStreamWrappersTest.php
+index 6a45a98..a1a9012 100644
+--- a/core/modules/image/tests/src/Kernel/ImageStyleCustomStreamWrappersTest.php
++++ b/core/modules/image/tests/src/Kernel/ImageStyleCustomStreamWrappersTest.php
+@@ -2,7 +2,6 @@
+ 
+ namespace Drupal\Tests\image\Kernel;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\StreamWrapper\PrivateStream;
+ use Drupal\Core\StreamWrapper\PublicStream;
+ use Drupal\file_test\StreamWrapper\DummyReadOnlyStreamWrapper;
+@@ -10,6 +9,7 @@
+ use Drupal\file_test\StreamWrapper\DummyStreamWrapper;
+ use Drupal\image\Entity\ImageStyle;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests derivative generation with source images using stream wrappers.
+diff --git a/core/modules/inline_form_errors/src/InlineFormErrorsServiceProvider.php b/core/modules/inline_form_errors/src/InlineFormErrorsServiceProvider.php
+index 6b0cb14..819993b 100644
+--- a/core/modules/inline_form_errors/src/InlineFormErrorsServiceProvider.php
++++ b/core/modules/inline_form_errors/src/InlineFormErrorsServiceProvider.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\inline_form_errors;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceProviderBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/modules/language/src/LanguageServiceProvider.php b/core/modules/language/src/LanguageServiceProvider.php
+index 2d2004f..8a6a9b5 100644
+--- a/core/modules/language/src/LanguageServiceProvider.php
++++ b/core/modules/language/src/LanguageServiceProvider.php
+@@ -3,9 +3,9 @@
+ namespace Drupal\language;
+ 
+ use Drupal\Core\Config\BootstrapConfigStorageFactory;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceProviderBase;
+ use Drupal\Core\Language\LanguageInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/modules/locale/tests/src/Kernel/LocaleConfigSubscriberForeignTest.php b/core/modules/locale/tests/src/Kernel/LocaleConfigSubscriberForeignTest.php
+index a53c3cf..1266cb4 100644
+--- a/core/modules/locale/tests/src/Kernel/LocaleConfigSubscriberForeignTest.php
++++ b/core/modules/locale/tests/src/Kernel/LocaleConfigSubscriberForeignTest.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\Tests\locale\Kernel;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\Language\Language;
+ use Drupal\language\Entity\ConfigurableLanguage;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests default configuration handling with a foreign default language.
+diff --git a/core/modules/menu_link_content/tests/src/Kernel/PathAliasMenuLinkContentTest.php b/core/modules/menu_link_content/tests/src/Kernel/PathAliasMenuLinkContentTest.php
+index 046deb4..355dadf 100644
+--- a/core/modules/menu_link_content/tests/src/Kernel/PathAliasMenuLinkContentTest.php
++++ b/core/modules/menu_link_content/tests/src/Kernel/PathAliasMenuLinkContentTest.php
+@@ -2,11 +2,11 @@
+ 
+ namespace Drupal\Tests\menu_link_content\Kernel;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\Language\LanguageInterface;
+ use Drupal\Core\Menu\MenuTreeParameters;
+ use Drupal\menu_link_content\Entity\MenuLinkContent;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Ensures that the menu tree adapts to path alias changes.
+diff --git a/core/modules/serialization/src/SerializationServiceProvider.php b/core/modules/serialization/src/SerializationServiceProvider.php
+index 9521185..45da2a3 100644
+--- a/core/modules/serialization/src/SerializationServiceProvider.php
++++ b/core/modules/serialization/src/SerializationServiceProvider.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\serialization;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceProviderInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Serialization dependency injection container.
+diff --git a/core/modules/simpletest/src/KernelTestBase.php b/core/modules/simpletest/src/KernelTestBase.php
+index 0b5792f..e0babc0 100644
+--- a/core/modules/simpletest/src/KernelTestBase.php
++++ b/core/modules/simpletest/src/KernelTestBase.php
+@@ -7,7 +7,6 @@
+ use Drupal\Component\Utility\Variable;
+ use Drupal\Core\Config\Development\ConfigSchemaChecker;
+ use Drupal\Core\Database\Database;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DrupalKernel;
+ use Drupal\Core\Entity\Sql\SqlEntityStorageInterface;
+ use Drupal\Core\Extension\ExtensionDiscovery;
+@@ -16,6 +15,7 @@
+ use Drupal\Core\Site\Settings;
+ use Symfony\Component\DependencyInjection\Parameter;
+ use Drupal\Core\StreamWrapper\StreamWrapperInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;;
+ use Symfony\Component\DependencyInjection\Reference;
+ use Symfony\Component\HttpFoundation\Request;
+ 
+diff --git a/core/modules/simpletest/src/TestServiceProvider.php b/core/modules/simpletest/src/TestServiceProvider.php
+index 817b68e..5b32dbc 100644
+--- a/core/modules/simpletest/src/TestServiceProvider.php
++++ b/core/modules/simpletest/src/TestServiceProvider.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\simpletest;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
+ use Drupal\Core\DependencyInjection\ServiceProviderInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Definition;
+ 
+ class TestServiceProvider implements ServiceProviderInterface, ServiceModifierInterface {
+@@ -35,7 +35,7 @@ public function alter(ContainerBuilder $container) {
+   /**
+    * Add the on demand rebuild route provider service.
+    *
+-   * @param \Drupal\Core\DependencyInjection\ContainerBuilder $container
++   * @param \Symfony\Component\DependencyInjection\ContainerBuilder $container
+    */
+   public static function addRouteProvider(ContainerBuilder $container) {
+     foreach (['router.route_provider' => 'RouteProvider'] as $original_id => $class) {
+diff --git a/core/modules/system/tests/modules/accept_header_routing_test/src/AcceptHeaderRoutingTestServiceProvider.php b/core/modules/system/tests/modules/accept_header_routing_test/src/AcceptHeaderRoutingTestServiceProvider.php
+index 983a60c..b33de53 100644
+--- a/core/modules/system/tests/modules/accept_header_routing_test/src/AcceptHeaderRoutingTestServiceProvider.php
++++ b/core/modules/system/tests/modules/accept_header_routing_test/src/AcceptHeaderRoutingTestServiceProvider.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\accept_header_routing_test;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Service provider for the accept_header_routing_test module.
+diff --git a/core/modules/system/tests/modules/error_service_test/src/ErrorServiceTestServiceProvider.php b/core/modules/system/tests/modules/error_service_test/src/ErrorServiceTestServiceProvider.php
+index 7f1c10e..426ee86 100644
+--- a/core/modules/system/tests/modules/error_service_test/src/ErrorServiceTestServiceProvider.php
++++ b/core/modules/system/tests/modules/error_service_test/src/ErrorServiceTestServiceProvider.php
+@@ -2,15 +2,15 @@
+ 
+ namespace Drupal\error_service_test;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ class ErrorServiceTestServiceProvider implements ServiceModifierInterface {
+ 
+   /**
+    * The in-situ container builder.
+    *
+-   * @var \Drupal\Core\DependencyInjection\ContainerBuilder
++   * @var \Symfony\Component\DependencyInjection\ContainerBuilder
+    */
+   public static $containerBuilder;
+ 
+diff --git a/core/modules/system/tests/modules/router_test_directory/src/RouterTestServiceProvider.php b/core/modules/system/tests/modules/router_test_directory/src/RouterTestServiceProvider.php
+index 7635704..1342b80 100644
+--- a/core/modules/system/tests/modules/router_test_directory/src/RouterTestServiceProvider.php
++++ b/core/modules/system/tests/modules/router_test_directory/src/RouterTestServiceProvider.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\router_test;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceProviderInterface;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Registers a dynamic route provider.
+diff --git a/core/modules/system/tests/modules/service_provider_test/src/ServiceProviderTestServiceProvider.php b/core/modules/system/tests/modules/service_provider_test/src/ServiceProviderTestServiceProvider.php
+index 00e00a0..a111d51 100644
+--- a/core/modules/system/tests/modules/service_provider_test/src/ServiceProviderTestServiceProvider.php
++++ b/core/modules/system/tests/modules/service_provider_test/src/ServiceProviderTestServiceProvider.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\service_provider_test;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
+ use Drupal\Core\Site\Settings;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ class ServiceProviderTestServiceProvider implements ServiceModifierInterface {
+ 
+diff --git a/core/tests/Drupal/KernelTests/Core/Cache/CacheCollectorTest.php b/core/tests/Drupal/KernelTests/Core/Cache/CacheCollectorTest.php
+index df3a6e2..6aa5923 100644
+--- a/core/tests/Drupal/KernelTests/Core/Cache/CacheCollectorTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Cache/CacheCollectorTest.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\KernelTests\Core\Cache;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\KernelTests\KernelTestBase;
+ use Drupal\Tests\Core\Cache\CacheCollectorHelper;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/tests/Drupal/KernelTests/Core/Cache/DatabaseBackendTagTest.php b/core/tests/Drupal/KernelTests/Core/Cache/DatabaseBackendTagTest.php
+index 484ee9c..af78c5a 100644
+--- a/core/tests/Drupal/KernelTests/Core/Cache/DatabaseBackendTagTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Cache/DatabaseBackendTagTest.php
+@@ -3,8 +3,8 @@
+ namespace Drupal\KernelTests\Core\Cache;
+ 
+ use Drupal\Core\Cache\Cache;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/tests/Drupal/KernelTests/Core/Command/DbDumpTest.php b/core/tests/Drupal/KernelTests/Core/Command/DbDumpTest.php
+index 8129410..ee78690 100644
+--- a/core/tests/Drupal/KernelTests/Core/Command/DbDumpTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Command/DbDumpTest.php
+@@ -6,10 +6,10 @@
+ use Drupal\Core\Command\DbDumpApplication;
+ use Drupal\Core\Config\DatabaseStorage;
+ use Drupal\Core\Database\Database;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\KernelTests\KernelTestBase;
+ use Drupal\user\Entity\User;
+ use Symfony\Component\Console\Tester\CommandTester;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/tests/Drupal/KernelTests/Core/Config/DefaultConfigTest.php b/core/tests/Drupal/KernelTests/Core/Config/DefaultConfigTest.php
+index 4b14805..1b6fc3f 100644
+--- a/core/tests/Drupal/KernelTests/Core/Config/DefaultConfigTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Config/DefaultConfigTest.php
+@@ -5,8 +5,8 @@
+ use Drupal\Tests\SchemaCheckTestTrait;
+ use Drupal\config_test\TestInstallStorage;
+ use Drupal\Core\Config\InstallStorage;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/tests/Drupal/KernelTests/Core/Config/Storage/CachedStorageTest.php b/core/tests/Drupal/KernelTests/Core/Config/Storage/CachedStorageTest.php
+index 163cca7..58ebe23 100644
+--- a/core/tests/Drupal/KernelTests/Core/Config/Storage/CachedStorageTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Config/Storage/CachedStorageTest.php
+@@ -4,8 +4,8 @@
+ 
+ use Drupal\Core\Config\FileStorage;
+ use Drupal\Core\Config\CachedStorage;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\StreamWrapper\PublicStream;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Reference;
+ 
+ /**
+diff --git a/core/tests/Drupal/KernelTests/Core/File/FileTestBase.php b/core/tests/Drupal/KernelTests/Core/File/FileTestBase.php
+index 548d1bc..e15b04b 100644
+--- a/core/tests/Drupal/KernelTests/Core/File/FileTestBase.php
++++ b/core/tests/Drupal/KernelTests/Core/File/FileTestBase.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\KernelTests\Core\File;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Base class for file tests that adds some additional file specific
+diff --git a/core/tests/Drupal/KernelTests/Core/HttpKernel/CorsIntegrationTest.php b/core/tests/Drupal/KernelTests/Core/HttpKernel/CorsIntegrationTest.php
+index e73efa3..74be073 100644
+--- a/core/tests/Drupal/KernelTests/Core/HttpKernel/CorsIntegrationTest.php
++++ b/core/tests/Drupal/KernelTests/Core/HttpKernel/CorsIntegrationTest.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\KernelTests\Core\HttpKernel;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\DependencyInjection\ServiceModifierInterface;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\HttpFoundation\Request;
+ use Symfony\Component\HttpFoundation\Response;
+ 
+diff --git a/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageExpirableTest.php b/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageExpirableTest.php
+index 1631501..1824d22 100644
+--- a/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageExpirableTest.php
++++ b/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageExpirableTest.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\KernelTests\Core\KeyValueStore;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\KeyValueStore\KeyValueFactory;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests the key-value database storage.
+diff --git a/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageTest.php b/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageTest.php
+index 676ab10..771129c 100644
+--- a/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageTest.php
++++ b/core/tests/Drupal/KernelTests/Core/KeyValueStore/DatabaseStorageTest.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\KernelTests\Core\KeyValueStore;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\KeyValueStore\KeyValueFactory;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests the key-value database storage.
+diff --git a/core/tests/Drupal/KernelTests/Core/KeyValueStore/MemoryStorageTest.php b/core/tests/Drupal/KernelTests/Core/KeyValueStore/MemoryStorageTest.php
+index f0f7642..d00ebf0 100644
+--- a/core/tests/Drupal/KernelTests/Core/KeyValueStore/MemoryStorageTest.php
++++ b/core/tests/Drupal/KernelTests/Core/KeyValueStore/MemoryStorageTest.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\KernelTests\Core\KeyValueStore;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\KeyValueStore\KeyValueFactory;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests the key-value memory storage.
+diff --git a/core/tests/Drupal/KernelTests/Core/Routing/ContentNegotiationRoutingTest.php b/core/tests/Drupal/KernelTests/Core/Routing/ContentNegotiationRoutingTest.php
+index 812e437..9f8080f 100644
+--- a/core/tests/Drupal/KernelTests/Core/Routing/ContentNegotiationRoutingTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Routing/ContentNegotiationRoutingTest.php
+@@ -2,8 +2,8 @@
+ 
+ namespace Drupal\KernelTests\Core\Routing;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\HttpFoundation\Request;
+ use Symfony\Component\HttpFoundation\Response;
+ 
+diff --git a/core/tests/Drupal/KernelTests/Core/Routing/RouteProviderTest.php b/core/tests/Drupal/KernelTests/Core/Routing/RouteProviderTest.php
+index 710d82f..0ac2c3e 100644
+--- a/core/tests/Drupal/KernelTests/Core/Routing/RouteProviderTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Routing/RouteProviderTest.php
+@@ -9,7 +9,6 @@
+ 
+ use Drupal\Core\Cache\MemoryBackend;
+ use Drupal\Core\Database\Database;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\KeyValueStore\KeyValueMemoryFactory;
+ use Drupal\Core\Path\CurrentPathStack;
+ use Drupal\Core\Routing\MatcherDumper;
+@@ -17,6 +16,7 @@
+ use Drupal\Core\State\State;
+ use Drupal\KernelTests\KernelTestBase;
+ use Drupal\Tests\Core\Routing\RoutingFixtures;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\HttpFoundation\Request;
+ use Symfony\Component\HttpFoundation\RequestStack;
+ use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+diff --git a/core/tests/Drupal/KernelTests/Core/Theme/ThemeInstallerTest.php b/core/tests/Drupal/KernelTests/Core/Theme/ThemeInstallerTest.php
+index f3e2ade..2ff12fd 100644
+--- a/core/tests/Drupal/KernelTests/Core/Theme/ThemeInstallerTest.php
++++ b/core/tests/Drupal/KernelTests/Core/Theme/ThemeInstallerTest.php
+@@ -2,9 +2,9 @@
+ 
+ namespace Drupal\KernelTests\Core\Theme;
+ 
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\Extension\ExtensionNameLengthException;
+ use Drupal\KernelTests\KernelTestBase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * Tests installing and uninstalling of themes.
+diff --git a/core/tests/Drupal/KernelTests/KernelTestBase.php b/core/tests/Drupal/KernelTests/KernelTestBase.php
+index f10cb14..ffad0f0 100644
+--- a/core/tests/Drupal/KernelTests/KernelTestBase.php
++++ b/core/tests/Drupal/KernelTests/KernelTestBase.php
+@@ -23,6 +23,7 @@
+ use Drupal\Tests\RandomGeneratorTrait;
+ use Drupal\simpletest\TestServiceProvider;
+ use Symfony\Component\DependencyInjection\Reference;
++use Symfony\Component\DependencyInjection\ContainerBuilder as SymfonyContainerBuilder;
+ use Symfony\Component\HttpFoundation\Request;
+ use org\bovigo\vfs\vfsStream;
+ use org\bovigo\vfs\visitor\vfsStreamPrintVisitor;
+@@ -581,12 +582,12 @@ private function getExtensionsForModules(array $modules) {
+    * Extend this method in your test to register additional services. This
+    * method is called whenever the kernel is rebuilt.
+    *
+-   * @param \Drupal\Core\DependencyInjection\ContainerBuilder $container
++   * @param \Symfony\Component\DependencyInjection\ContainerBuilder $container
+    *   The service container to enhance.
+    *
+    * @see \Drupal\Tests\KernelTestBase::bootKernel()
+    */
+-  public function register(ContainerBuilder $container) {
++  public function register(SymfonyContainerBuilder $container) {
+     // Keep the container object around for tests.
+     $this->container = $container;
+ 
+diff --git a/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/AuthenticationProviderPassTest.php b/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/AuthenticationProviderPassTest.php
+index 6f99d09..4065498 100644
+--- a/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/AuthenticationProviderPassTest.php
++++ b/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/AuthenticationProviderPassTest.php
+@@ -3,7 +3,7 @@
+ namespace Drupal\Tests\Core\DependencyInjection\Compiler;
+ 
+ use Drupal\Core\DependencyInjection\Compiler\AuthenticationProviderPass;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Definition;
+ use Symfony\Component\Serializer\Serializer;
+ 
+diff --git a/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/ProxyServicesPassTest.php b/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/ProxyServicesPassTest.php
+index b43971d..b0b0f27 100644
+--- a/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/ProxyServicesPassTest.php
++++ b/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/ProxyServicesPassTest.php
+@@ -3,8 +3,8 @@
+ namespace Drupal\Tests\Core\DependencyInjection\Compiler;
+ 
+ use Drupal\Core\DependencyInjection\Compiler\ProxyServicesPass;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Tests\UnitTestCase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ 
+ /**
+  * @coversDefaultClass \Drupal\Core\DependencyInjection\Compiler\ProxyServicesPass
+diff --git a/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/StackedKernelPassTest.php b/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/StackedKernelPassTest.php
+index 9890ff9..8c1265c 100644
+--- a/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/StackedKernelPassTest.php
++++ b/core/tests/Drupal/Tests/Core/DependencyInjection/Compiler/StackedKernelPassTest.php
+@@ -3,8 +3,8 @@
+ namespace Drupal\Tests\Core\DependencyInjection\Compiler;
+ 
+ use Drupal\Core\DependencyInjection\Compiler\StackedKernelPass;
+-use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Tests\UnitTestCase;
++use Symfony\Component\DependencyInjection\ContainerBuilder;
+ use Symfony\Component\DependencyInjection\Definition;
+ 
+ /**

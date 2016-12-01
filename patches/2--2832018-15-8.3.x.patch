@@ -1,0 +1,119 @@
+commit 435bdf014793da9ebd7ba5a776cf56f4449604c1
+Author: Pierre Rineau <pierre.rineau@makina-corpus.com>
+Date:   Thu Dec 1 14:37:50 2016 +0100
+
+    Issue #2832018 by pounard: Compiler passes don't manually resolve class names of definition before using it
+
+diff --git a/core/lib/Drupal/Core/DependencyInjection/Compiler/ProxyServicesPass.php b/core/lib/Drupal/Core/DependencyInjection/Compiler/ProxyServicesPass.php
+index b37e900..f0058fe 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/Compiler/ProxyServicesPass.php
++++ b/core/lib/Drupal/Core/DependencyInjection/Compiler/ProxyServicesPass.php
+@@ -18,7 +18,8 @@ class ProxyServicesPass implements CompilerPassInterface {
+   public function process(ContainerBuilder $container) {
+     foreach ($container->getDefinitions() as $service_id => $definition) {
+       if ($definition->isLazy()) {
+-        $proxy_class = ProxyBuilder::buildProxyClassName($definition->getClass());
++        $class_name = $container->getParameterBag()->resolveValue($definition->getClass());
++        $proxy_class = ProxyBuilder::buildProxyClassName($class_name);
+         if (class_exists($proxy_class)) {
+           // Copy the existing definition to a new entry.
+           $definition->setLazy(FALSE);
+@@ -31,7 +32,7 @@ public function process(ContainerBuilder $container) {
+             ->setArguments([new Reference('service_container'), $new_service_id]);
+         }
+         else {
+-          $class_name = $definition->getClass();
++          $class_name = $container->getParameterBag()->resolveValue($definition->getClass());
+ 
+           // Find the root namespace.
+           $match = [];
+diff --git a/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterEventSubscribersPass.php b/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterEventSubscribersPass.php
+index aa943c7..780f642 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterEventSubscribersPass.php
++++ b/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterEventSubscribersPass.php
+@@ -25,7 +25,8 @@ public function process(ContainerBuilder $container) {
+ 
+       // We must assume that the class value has been correctly filled, even if
+       // the service is created by a factory.
+-      $class = $container->getDefinition($id)->getClass();
++      $defintion = $container->getDefinition($id);
++      $class = $container->getParameterBag()->resolveValue($defintion->getClass());
+ 
+       $refClass = new \ReflectionClass($class);
+       $interface = 'Symfony\Component\EventDispatcher\EventSubscriberInterface';
+diff --git a/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterStreamWrappersPass.php b/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterStreamWrappersPass.php
+index 7abf49f..7c5587f 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterStreamWrappersPass.php
++++ b/core/lib/Drupal/Core/DependencyInjection/Compiler/RegisterStreamWrappersPass.php
+@@ -21,7 +21,8 @@ public function process(ContainerBuilder $container) {
+     $stream_wrapper_manager = $container->getDefinition('stream_wrapper_manager');
+ 
+     foreach ($container->findTaggedServiceIds('stream_wrapper') as $id => $attributes) {
+-      $class = $container->getDefinition($id)->getClass();
++      $definition = $container->getDefinition($id);
++      $class = $container->getParameterBag()->resolveValue($definition->getClass());
+       $scheme = $attributes[0]['scheme'];
+ 
+       $stream_wrapper_manager->addMethodCall('addStreamWrapper', array($id, $class, $scheme));
+diff --git a/core/lib/Drupal/Core/DependencyInjection/Compiler/TaggedHandlersPass.php b/core/lib/Drupal/Core/DependencyInjection/Compiler/TaggedHandlersPass.php
+index 04b56aa..e37ab88 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/Compiler/TaggedHandlersPass.php
++++ b/core/lib/Drupal/Core/DependencyInjection/Compiler/TaggedHandlersPass.php
+@@ -83,7 +83,8 @@ public function process(ContainerBuilder $container) {
+ 
+         // Determine parameters.
+         $consumer = $container->getDefinition($consumer_id);
+-        $method = new \ReflectionMethod($consumer->getClass(), $method_name);
++        $consumer_class = $container->getParameterBag()->resolveValue($consumer->getClass());
++        $method = new \ReflectionMethod($consumer_class, $method_name);
+         $params = $method->getParameters();
+ 
+         $interface_pos = 0;
+@@ -109,7 +110,7 @@ public function process(ContainerBuilder $container) {
+         if (!isset($interface)) {
+           throw new LogicException(vsprintf("Service consumer '%s' class method %s::%s() has to type-hint an interface.", array(
+             $consumer_id,
+-            $consumer->getClass(),
++            $consumer_class,
+             $method_name,
+           )));
+         }
+@@ -121,7 +122,8 @@ public function process(ContainerBuilder $container) {
+         foreach ($container->findTaggedServiceIds($tag) as $id => $attributes) {
+           // Validate the interface.
+           $handler = $container->getDefinition($id);
+-          if (!is_subclass_of($handler->getClass(), $interface)) {
++          $handler_class = $container->getParameterBag()->resolveValue($handler->getClass());
++          if (!is_subclass_of($handler_class, $interface)) {
+             throw new LogicException("Service '$id' for consumer '$consumer_id' does not implement $interface.");
+           }
+           $handlers[$id] = isset($attributes[0]['priority']) ? $attributes[0]['priority'] : 0;
+diff --git a/core/lib/Drupal/Core/DependencyInjection/Compiler/TwigExtensionPass.php b/core/lib/Drupal/Core/DependencyInjection/Compiler/TwigExtensionPass.php
+index d5c7931..8f3aea5 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/Compiler/TwigExtensionPass.php
++++ b/core/lib/Drupal/Core/DependencyInjection/Compiler/TwigExtensionPass.php
+@@ -19,7 +19,8 @@ class TwigExtensionPass implements CompilerPassInterface {
+   public function process(ContainerBuilder $container) {
+     $twig_extension_hash = '';
+     foreach (array_keys($container->findTaggedServiceIds('twig.extension')) as $service_id) {
+-      $class_name = $container->getDefinition($service_id)->getClass();
++      $definition = $container->getDefinition($service_id);
++      $class_name = $container->getParameterBag()->resolveValue($definition->getClass());
+       $reflection = new \ReflectionClass($class_name);
+       // We use the class names as hash in order to invalidate on new extensions
+       // and mtime for every time we change an existing file.
+diff --git a/core/lib/Drupal/Core/Plugin/PluginManagerPass.php b/core/lib/Drupal/Core/Plugin/PluginManagerPass.php
+index dcacf7b..5cd5897 100644
+--- a/core/lib/Drupal/Core/Plugin/PluginManagerPass.php
++++ b/core/lib/Drupal/Core/Plugin/PluginManagerPass.php
+@@ -18,7 +18,9 @@ public function process(ContainerBuilder $container) {
+     $cache_clearer_definition = $container->getDefinition('plugin.cache_clearer');
+     foreach ($container->getDefinitions() as $service_id => $definition) {
+       if (strpos($service_id, 'plugin.manager.') === 0 || $definition->hasTag('plugin_manager_cache_clear')) {
+-        if (is_subclass_of($definition->getClass(), '\Drupal\Component\Plugin\Discovery\CachedDiscoveryInterface')) {
++
++        $class_name = $container->getParameterBag()->resolveValue($definition->getClass());
++        if (is_subclass_of($class_name, '\Drupal\Component\Plugin\Discovery\CachedDiscoveryInterface')) {
+           $cache_clearer_definition->addMethodCall('addCachedDiscovery', array(new Reference($service_id)));
+         }
+       }
