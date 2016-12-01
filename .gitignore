@@ -1,0 +1,14 @@
+.buildpath
+.project
+.settings
+*.swp
+app/cache
+app/logs
+composer.lock
+lib/vendor
+sbin/*
+!sbin/fixperms.sh
+var
+web/core
+web/sites/default/files
+web/sites/default/settings.php
