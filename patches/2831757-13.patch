@@ -1,0 +1,1011 @@
+diff --git a/core/lib/Drupal/Component/DependencyInjection/Container.php b/core/lib/Drupal/Component/DependencyInjection/Container.php
+index 452a2c8..199f52b 100644
+--- a/core/lib/Drupal/Component/DependencyInjection/Container.php
++++ b/core/lib/Drupal/Component/DependencyInjection/Container.php
+@@ -3,9 +3,7 @@
+ namespace Drupal\Component\DependencyInjection;
+ 
+ use Symfony\Component\DependencyInjection\ContainerInterface;
+-use Symfony\Component\DependencyInjection\IntrospectableContainerInterface;
+ use Symfony\Component\DependencyInjection\ResettableContainerInterface;
+-use Symfony\Component\DependencyInjection\ScopeInterface;
+ use Symfony\Component\DependencyInjection\Exception\LogicException;
+ use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
+ use Symfony\Component\DependencyInjection\Exception\RuntimeException;
+@@ -43,14 +41,10 @@
+  *   getAServiceWithAnIdByCamelCase().
+  * - The function getServiceIds() was added as it has a use-case in core and
+  *   contrib.
+- * - Scopes are explicitly not allowed, because Symfony 2.8 has deprecated
+- *   them and they will be removed in Symfony 3.0.
+- * - Synchronized services are explicitly not supported, because Symfony 2.8 has
+- *   deprecated them and they will be removed in Symfony 3.0.
+  *
+  * @ingroup container
+  */
+-class Container implements IntrospectableContainerInterface, ResettableContainerInterface {
++class Container implements ContainerInterface, ResettableContainerInterface {
+ 
+   /**
+    * The parameters of the container.
+@@ -311,12 +305,8 @@ protected function createService(array $definition, $id) {
+       }
+     }
+ 
+-    // Share the service if it is public.
+-    if (!isset($definition['public']) || $definition['public'] !== FALSE) {
+-      // Forward compatibility fix for Symfony 2.8 update.
+-      if (!isset($definition['shared']) || $definition['shared'] !== FALSE) {
+-        $this->services[$id] = $service;
+-      }
++    if (!isset($definition['shared']) || $definition['shared'] !== FALSE) {
++      $this->services[$id] = $service;
+     }
+ 
+     if (isset($definition['calls'])) {
+@@ -361,11 +351,7 @@ protected function createService(array $definition, $id) {
+   /**
+    * {@inheritdoc}
+    */
+-  public function set($id, $service, $scope = ContainerInterface::SCOPE_CONTAINER) {
+-    if (!in_array($scope, array('container', 'request')) || ('request' === $scope && 'request' !== $id)) {
+-      @trigger_error('The concept of container scopes is deprecated since version 2.8 and will be removed in 3.0. Omit the third parameter.', E_USER_DEPRECATED);
+-    }
+-
++  public function set($id, $service) {
+     $this->services[$id] = $service;
+   }
+ 
+@@ -587,61 +573,6 @@ protected function getParameterAlternatives($name) {
+     return $this->getAlternatives($name, array_keys($this->parameters));
+   }
+ 
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function enterScope($name) {
+-    if ('request' !== $name) {
+-      @trigger_error('The ' . __METHOD__ . ' method is deprecated since version 2.8 and will be removed in 3.0.', E_USER_DEPRECATED);
+-    }
+-
+-    throw new \BadMethodCallException(sprintf("'%s' is not supported by Drupal 8.", __FUNCTION__));
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function leaveScope($name) {
+-    if ('request' !== $name) {
+-      @trigger_error('The ' . __METHOD__ . ' method is deprecated since version 2.8 and will be removed in 3.0.', E_USER_DEPRECATED);
+-    }
+-
+-    throw new \BadMethodCallException(sprintf("'%s' is not supported by Drupal 8.", __FUNCTION__));
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function addScope(ScopeInterface $scope) {
+-
+-    $name = $scope->getName();
+-    if ('request' !== $name) {
+-      @trigger_error('The ' . __METHOD__ . ' method is deprecated since version 2.8 and will be removed in 3.0.', E_USER_DEPRECATED);
+-    }
+-    throw new \BadMethodCallException(sprintf("'%s' is not supported by Drupal 8.", __FUNCTION__));
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function hasScope($name) {
+-    if ('request' !== $name) {
+-      @trigger_error('The ' . __METHOD__ . ' method is deprecated since version 2.8 and will be removed in 3.0.', E_USER_DEPRECATED);
+-    }
+-
+-    throw new \BadMethodCallException(sprintf("'%s' is not supported by Drupal 8.", __FUNCTION__));
+-  }
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function isScopeActive($name) {
+-    @trigger_error('The ' . __METHOD__ . ' method is deprecated since version 2.8 and will be removed in 3.0.', E_USER_DEPRECATED);
+-
+-    throw new \BadMethodCallException(sprintf("'%s' is not supported by Drupal 8.", __FUNCTION__));
+-  }
+-
+   /**
+    * Gets all defined service IDs.
+    *
+diff --git a/core/lib/Drupal/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumper.php b/core/lib/Drupal/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumper.php
+index 984ec50..0a719d2 100644
+--- a/core/lib/Drupal/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumper.php
++++ b/core/lib/Drupal/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumper.php
+@@ -236,18 +236,6 @@ protected function getServiceDefinition(Definition $definition) {
+       $service['calls'] = $this->dumpMethodCalls($definition->getMethodCalls());
+     }
+ 
+-    if (($scope = $definition->getScope()) !== ContainerInterface::SCOPE_CONTAINER) {
+-      if ($scope === ContainerInterface::SCOPE_PROTOTYPE) {
+-        // Scope prototype has been replaced with 'shared' => FALSE.
+-        // This is a Symfony 2.8 forward compatibility fix.
+-        // Reference: https://github.com/symfony/symfony/blob/2.8/UPGRADE-2.8.md#dependencyinjection
+-        $service['shared'] = FALSE;
+-      }
+-      else {
+-        throw new InvalidArgumentException("The 'scope' definition is deprecated in Symfony 3.0 and not supported by Drupal 8.");
+-      }
+-    }
+-
+     // By default services are shared, so just provide the flag, when needed.
+     if ($definition->isShared() === FALSE) {
+       $service['shared'] = $definition->isShared();
+diff --git a/core/lib/Drupal/Component/DependencyInjection/PhpArrayContainer.php b/core/lib/Drupal/Component/DependencyInjection/PhpArrayContainer.php
+index 3ec2086..91577c3 100644
+--- a/core/lib/Drupal/Component/DependencyInjection/PhpArrayContainer.php
++++ b/core/lib/Drupal/Component/DependencyInjection/PhpArrayContainer.php
+@@ -136,12 +136,8 @@ protected function createService(array $definition, $id) {
+       }
+     }
+ 
+-    // Share the service if it is public.
+-    if (!isset($definition['public']) || $definition['public'] !== FALSE) {
+-      // Forward compatibility fix for Symfony 2.8 update.
+-      if (!isset($definition['shared']) || $definition['shared'] !== FALSE) {
+-        $this->services[$id] = $service;
+-      }
++    if (!isset($definition['shared']) || $definition['shared'] !== FALSE) {
++      $this->services[$id] = $service;
+     }
+ 
+     if (isset($definition['calls'])) {
+diff --git a/core/lib/Drupal/Component/EventDispatcher/ContainerAwareEventDispatcher.php b/core/lib/Drupal/Component/EventDispatcher/ContainerAwareEventDispatcher.php
+index a933b06..dcd724d 100644
+--- a/core/lib/Drupal/Component/EventDispatcher/ContainerAwareEventDispatcher.php
++++ b/core/lib/Drupal/Component/EventDispatcher/ContainerAwareEventDispatcher.php
+@@ -2,7 +2,7 @@
+ 
+ namespace Drupal\Component\EventDispatcher;
+ 
+-use Symfony\Component\DependencyInjection\IntrospectableContainerInterface;
++use Symfony\Component\DependencyInjection\ContainerInterface;
+ use Symfony\Component\EventDispatcher\Event;
+ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+@@ -36,7 +36,7 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
+   /**
+    * The service container.
+    *
+-   * @var \Symfony\Component\DependencyInjection\IntrospectableContainerInterface;
++   * @var \Symfony\Component\DependencyInjection\ContainerInterface;
+    */
+   protected $container;
+ 
+@@ -66,7 +66,7 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
+   /**
+    * Constructs a container aware event dispatcher.
+    *
+-   * @param \Symfony\Component\DependencyInjection\IntrospectableContainerInterface $container
++   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
+    *   The service container.
+    * @param array $listeners
+    *   A nested array of listener definitions keyed by event name and priority.
+@@ -77,7 +77,7 @@ class ContainerAwareEventDispatcher implements EventDispatcherInterface {
+    *   A service entry will be resolved to a callable only just before its
+    *   invocation.
+    */
+-  public function __construct(IntrospectableContainerInterface $container, array $listeners = []) {
++  public function __construct(ContainerInterface $container, array $listeners = []) {
+     $this->container = $container;
+     $this->listeners = $listeners;
+     $this->unsorted = [];
+@@ -91,9 +91,6 @@ public function dispatch($event_name, Event $event = NULL) {
+       $event = new Event();
+     }
+ 
+-    $event->setDispatcher($this);
+-    $event->setName($event_name);
+-
+     if (isset($this->listeners[$event_name])) {
+       // Sort listeners if necessary.
+       if (isset($this->unsorted[$event_name])) {
+diff --git a/core/lib/Drupal/Component/Serialization/YamlPecl.php b/core/lib/Drupal/Component/Serialization/YamlPecl.php
+index 2383bf8..ec48a29 100644
+--- a/core/lib/Drupal/Component/Serialization/YamlPecl.php
++++ b/core/lib/Drupal/Component/Serialization/YamlPecl.php
+@@ -27,6 +27,13 @@ public static function encode($data) {
+    * {@inheritdoc}
+    */
+   public static function decode($raw) {
++    static $init;
++    if (!isset($init)) {
++      // Decode binary, since Symfony YAML parser encodes binary from 3.1
++      // onwards.
++      ini_set('yaml.decode_binary', 1);
++      $init = TRUE;
++    }
+     // yaml_parse() will error with an empty value.
+     if (!trim($raw)) {
+       return NULL;
+diff --git a/core/lib/Drupal/Component/Serialization/YamlSymfony.php b/core/lib/Drupal/Component/Serialization/YamlSymfony.php
+index 8818e52..390178f 100644
+--- a/core/lib/Drupal/Component/Serialization/YamlSymfony.php
++++ b/core/lib/Drupal/Component/Serialization/YamlSymfony.php
+@@ -5,6 +5,7 @@
+ use Drupal\Component\Serialization\Exception\InvalidDataTypeException;
+ use Symfony\Component\Yaml\Parser;
+ use Symfony\Component\Yaml\Dumper;
++use Symfony\Component\Yaml\Yaml as SymfonyYaml;
+ 
+ /**
+  * Default serialization for YAML using the Symfony component.
+@@ -18,7 +19,7 @@ public static function encode($data) {
+     try {
+       $yaml = new Dumper();
+       $yaml->setIndentation(2);
+-      return $yaml->dump($data, PHP_INT_MAX, 0, TRUE, FALSE);
++      return $yaml->dump($data, PHP_INT_MAX, 0, SymfonyYaml::DUMP_EXCEPTION_ON_INVALID_TYPE);
+     }
+     catch (\Exception $e) {
+       throw new InvalidDataTypeException($e->getMessage(), $e->getCode(), $e);
+@@ -33,7 +34,7 @@ public static function decode($raw) {
+       $yaml = new Parser();
+       // Make sure we have a single trailing newline. A very simple config like
+       // 'foo: bar' with no newline will fail to parse otherwise.
+-      return $yaml->parse($raw, TRUE, FALSE);
++      return $yaml->parse($raw, SymfonyYaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+     }
+     catch (\Exception $e) {
+       throw new InvalidDataTypeException($e->getMessage(), $e->getCode(), $e);
+diff --git a/core/lib/Drupal/Core/DependencyInjection/Container.php b/core/lib/Drupal/Core/DependencyInjection/Container.php
+index 4a49122..5643363 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/Container.php
++++ b/core/lib/Drupal/Core/DependencyInjection/Container.php
+@@ -3,7 +3,6 @@
+ namespace Drupal\Core\DependencyInjection;
+ 
+ use Drupal\Component\DependencyInjection\Container as DrupalContainer;
+-use Symfony\Component\DependencyInjection\ContainerInterface;
+ 
+ /**
+  * Extends the Drupal container to set the service ID on the created object.
+@@ -13,8 +12,8 @@ class Container extends DrupalContainer {
+   /**
+    * {@inheritdoc}
+    */
+-  public function set($id, $service, $scope = ContainerInterface::SCOPE_CONTAINER) {
+-    parent::set($id, $service, $scope);
++  public function set($id, $service) {
++    parent::set($id, $service);
+ 
+     // Ensure that the _serviceId property is set on synthetic services as well.
+     if (isset($this->services[$id]) && is_object($this->services[$id]) && !isset($this->services[$id]->_serviceId)) {
+diff --git a/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php b/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php
+index e45cb88..e0becc7 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php
++++ b/core/lib/Drupal/Core/DependencyInjection/ContainerBuilder.php
+@@ -46,20 +46,12 @@ private function getProxyInstantiator()
+   }
+ 
+   /**
+-   * Direct copy of the parent function.
++   * {@inheritdoc}
+    */
+   protected function shareService(Definition $definition, $service, $id)
+   {
+-    if ($definition->isShared() && self::SCOPE_PROTOTYPE !== $scope = $definition->getScope(false)) {
+-      if (self::SCOPE_CONTAINER !== $scope && !isset($this->scopedServices[$scope])) {
+-        throw new InactiveScopeException($id, $scope);
+-      }
+-
++    if ($definition->isShared()) {
+       $this->services[$lowerId = strtolower($id)] = $service;
+-
+-      if (self::SCOPE_CONTAINER !== $scope) {
+-        $this->scopedServices[$scope][$lowerId] = $service;
+-      }
+     }
+   }
+ 
+@@ -74,11 +66,11 @@ protected function shareService(Definition $definition, $service, $id)
+    *   ContainerBuilder class should be fixed to allow setting synthetic
+    *   services in a frozen builder.
+    */
+-  public function set($id, $service, $scope = self::SCOPE_CONTAINER) {
++  public function set($id, $service) {
+     if (strtolower($id) !== $id) {
+       throw new \InvalidArgumentException("Service ID names must be lowercase: $id");
+     }
+-    SymfonyContainer::set($id, $service, $scope);
++    SymfonyContainer::set($id, $service);
+ 
+     // Ensure that the _serviceId property is set on synthetic services as well.
+     if (isset($this->services[$id]) && is_object($this->services[$id]) && !isset($this->services[$id]->_serviceId)) {
+diff --git a/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php b/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php
+index da1c08c..d999450 100644
+--- a/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php
++++ b/core/lib/Drupal/Core/DependencyInjection/YamlFileLoader.php
+@@ -168,21 +168,10 @@ private function parseDefinition($id, $service, $file)
+             $definition->setShared($service['shared']);
+         }
+ 
+-        if (isset($service['scope'])) {
+-            if ('request' !== $id) {
+-                @trigger_error(sprintf('The "scope" key of service "%s" in file "%s" is deprecated since version 2.8 and will be removed in 3.0.', $id, $file), E_USER_DEPRECATED);
+-            }
+-            $definition->setScope($service['scope'], false);
+-        }
+-
+         if (isset($service['synthetic'])) {
+             $definition->setSynthetic($service['synthetic']);
+         }
+ 
+-        if (isset($service['synchronized'])) {
+-            $definition->setSynchronized($service['synchronized'], 'request' !== $id);
+-        }
+-
+         if (isset($service['lazy'])) {
+             $definition->setLazy($service['lazy']);
+         }
+@@ -213,15 +202,15 @@ private function parseDefinition($id, $service, $file)
+         }
+ 
+         if (isset($service['factory_class'])) {
+-            $definition->setFactoryClass($service['factory_class']);
++            $definition->setFactory($service['factory_class']);
+         }
+ 
+         if (isset($service['factory_method'])) {
+-            $definition->setFactoryMethod($service['factory_method']);
++            $definition->setFactory($service['factory_method']);
+         }
+ 
+         if (isset($service['factory_service'])) {
+-            $definition->setFactoryService($service['factory_service']);
++            $definition->setFactory($service['factory_service']);
+         }
+ 
+         if (isset($service['file'])) {
+diff --git a/core/lib/Drupal/Core/DrupalKernel.php b/core/lib/Drupal/Core/DrupalKernel.php
+index 274a3fa..7926623 100644
+--- a/core/lib/Drupal/Core/DrupalKernel.php
++++ b/core/lib/Drupal/Core/DrupalKernel.php
+@@ -152,6 +152,13 @@ class DrupalKernel implements DrupalKernelInterface, TerminableInterface {
+   protected $classLoader;
+ 
+   /**
++   * The class loader class before including settings.php.
++   *
++   * @var string
++   */
++  protected $preSettingsClassLoaderClass;
++
++  /**
+    * Config storage object used for reading enabled modules configuration.
+    *
+    * @var \Drupal\Core\Config\StorageInterface
+@@ -890,6 +897,34 @@ protected function initializeContainer() {
+       $container = new $class($container_definition);
+     }
+ 
++    // If the class loader is still the same as before including settings.php
++    // use an optimised classloader if possible.
++    if ($this->preSettingsClassLoaderClass == get_class($this->classLoader)
++      && Settings::get('class_loader_auto_detect', TRUE)) {
++      $prefix = Settings::getApcuPrefix('class_loader', $this->root);
++      // We have to key by module list since if this changes the classloader
++      // might have negative caches for classes that now exist.
++      $prefix .= '.' . hash('sha1', serialize(array_keys($container->getParameter('container.modules'))));
++      $loader = NULL;
++
++      // We autodetect one of the following three optimized classloaders, if
++      // their underlying extension exists.
++      if (function_exists('apcu_fetch')) {
++        $loader = new ApcClassLoader($prefix, $this->classLoader);
++      }
++      elseif (extension_loaded('wincache')) {
++        $loader = new WinCacheClassLoader($prefix, $this->classLoader);
++      }
++      elseif (extension_loaded('xcache')) {
++        $loader = new XcacheClassLoader($prefix, $this->classLoader);
++      }
++      if (!empty($loader)) {
++        $this->classLoader->unregister();
++        $loader->register();
++        $this->classLoader = $loader;
++      }
++    }
++
+     $this->attachSynthetic($container);
+ 
+     $this->container = $container;
+@@ -1018,7 +1053,7 @@ public static function bootEnvironment($app_root = NULL) {
+   protected function initializeSettings(Request $request) {
+     $site_path = static::findSitePath($request);
+     $this->setSitePath($site_path);
+-    $class_loader_class = get_class($this->classLoader);
++    $this->preSettingsClassLoaderClass = get_class($this->classLoader);
+     Settings::initialize($this->root, $site_path, $this->classLoader);
+ 
+     // Initialize our list of trusted HTTP Host headers to protect against
+@@ -1029,31 +1064,6 @@ protected function initializeSettings(Request $request) {
+         throw new BadRequestHttpException('The provided host name is not valid for this server.');
+       }
+     }
+-
+-    // If the class loader is still the same, possibly
+-    // upgrade to an optimized class loader.
+-    if ($class_loader_class == get_class($this->classLoader)
+-        && Settings::get('class_loader_auto_detect', TRUE)) {
+-      $prefix = Settings::getApcuPrefix('class_loader', $this->root);
+-      $loader = NULL;
+-
+-      // We autodetect one of the following three optimized classloaders, if
+-      // their underlying extension exists.
+-      if (function_exists('apcu_fetch')) {
+-        $loader = new ApcClassLoader($prefix, $this->classLoader);
+-      }
+-      elseif (extension_loaded('wincache')) {
+-        $loader = new WinCacheClassLoader($prefix, $this->classLoader);
+-      }
+-      elseif (extension_loaded('xcache')) {
+-        $loader = new XcacheClassLoader($prefix, $this->classLoader);
+-      }
+-      if (!empty($loader)) {
+-        $this->classLoader->unregister();
+-        $loader->register();
+-        $this->classLoader = $loader;
+-      }
+-    }
+   }
+ 
+   /**
+diff --git a/core/lib/Drupal/Core/EventSubscriber/FinishResponseSubscriber.php b/core/lib/Drupal/Core/EventSubscriber/FinishResponseSubscriber.php
+index 3db181a..252d200 100644
+--- a/core/lib/Drupal/Core/EventSubscriber/FinishResponseSubscriber.php
++++ b/core/lib/Drupal/Core/EventSubscriber/FinishResponseSubscriber.php
+@@ -174,9 +174,9 @@ public function onRespond(FilterResponseEvent $event) {
+    *
+    * When neither Cache-Control nor any of the ETag, Last-Modified, Expires
+    * headers are set on the response, ::get('Cache-Control') returns the value
+-   * 'no-cache'. If any of ETag, Last-Modified or Expires are set but not
+-   * Cache-Control, then 'private, must-revalidate' (in exactly this order) is
+-   * returned.
++   * 'no-cache, private'. If any of ETag, Last-Modified or Expires are set but
++   * not Cache-Control, then 'private, must-revalidate' (in exactly this order)
++   * is returned.
+    *
+    * @see \Symfony\Component\HttpFoundation\ResponseHeaderBag::computeCacheControlValue()
+    *
+@@ -187,7 +187,7 @@ public function onRespond(FilterResponseEvent $event) {
+    */
+   protected function isCacheControlCustomized(Response $response) {
+     $cache_control = $response->headers->get('Cache-Control');
+-    return $cache_control != 'no-cache' && $cache_control != 'private, must-revalidate';
++    return $cache_control != 'no-cache, private' && $cache_control != 'private, must-revalidate';
+   }
+ 
+   /**
+diff --git a/core/lib/Drupal/Core/PageCache/RequestPolicy/CommandLineOrUnsafeMethod.php b/core/lib/Drupal/Core/PageCache/RequestPolicy/CommandLineOrUnsafeMethod.php
+index bbf85a3..27a1f71 100644
+--- a/core/lib/Drupal/Core/PageCache/RequestPolicy/CommandLineOrUnsafeMethod.php
++++ b/core/lib/Drupal/Core/PageCache/RequestPolicy/CommandLineOrUnsafeMethod.php
+@@ -18,7 +18,7 @@ class CommandLineOrUnsafeMethod implements RequestPolicyInterface {
+    * {@inheritdoc}
+    */
+   public function check(Request $request) {
+-    if ($this->isCli() || !$request->isMethodSafe()) {
++    if ($this->isCli() || !$request->isMethodCacheable()) {
+       return static::DENY;
+     }
+   }
+diff --git a/core/lib/Drupal/Core/Render/PlaceholderingRenderCache.php b/core/lib/Drupal/Core/Render/PlaceholderingRenderCache.php
+index 4256283..0422ecf 100644
+--- a/core/lib/Drupal/Core/Render/PlaceholderingRenderCache.php
++++ b/core/lib/Drupal/Core/Render/PlaceholderingRenderCache.php
+@@ -93,7 +93,7 @@ public function __construct(RequestStack $request_stack, CacheFactoryInterface $
+    */
+   public function get(array $elements) {
+     // @todo remove this check when https://www.drupal.org/node/2367555 lands.
+-    if (!$this->requestStack->getCurrentRequest()->isMethodSafe()) {
++    if (!$this->requestStack->getCurrentRequest()->isMethodCacheable()) {
+       return FALSE;
+     }
+ 
+@@ -127,7 +127,7 @@ public function set(array &$elements, array $pre_bubbling_elements) {
+     $result = parent::set($elements, $pre_bubbling_elements);
+ 
+     // @todo remove this check when https://www.drupal.org/node/2367555 lands.
+-    if (!$this->requestStack->getCurrentRequest()->isMethodSafe()) {
++    if (!$this->requestStack->getCurrentRequest()->isMethodCacheable()) {
+       return FALSE;
+     }
+ 
+diff --git a/core/lib/Drupal/Core/Render/RenderCache.php b/core/lib/Drupal/Core/Render/RenderCache.php
+index 12d52e9..9ac3381 100644
+--- a/core/lib/Drupal/Core/Render/RenderCache.php
++++ b/core/lib/Drupal/Core/Render/RenderCache.php
+@@ -61,9 +61,9 @@ public function __construct(RequestStack $request_stack, CacheFactoryInterface $
+   public function get(array $elements) {
+     // Form submissions rely on the form being built during the POST request,
+     // and render caching of forms prevents this from happening.
+-    // @todo remove the isMethodSafe() check when
++    // @todo remove the isMethodCacheable() check when
+     //       https://www.drupal.org/node/2367555 lands.
+-    if (!$this->requestStack->getCurrentRequest()->isMethodSafe() || !$cid = $this->createCacheID($elements)) {
++    if (!$this->requestStack->getCurrentRequest()->isMethodCacheable() || !$cid = $this->createCacheID($elements)) {
+       return FALSE;
+     }
+     $bin = isset($elements['#cache']['bin']) ? $elements['#cache']['bin'] : 'render';
+@@ -88,9 +88,9 @@ public function get(array $elements) {
+   public function set(array &$elements, array $pre_bubbling_elements) {
+     // Form submissions rely on the form being built during the POST request,
+     // and render caching of forms prevents this from happening.
+-    // @todo remove the isMethodSafe() check when
++    // @todo remove the isMethodCacheable() check when
+     //       https://www.drupal.org/node/2367555 lands.
+-    if (!$this->requestStack->getCurrentRequest()->isMethodSafe() || !$cid = $this->createCacheID($elements)) {
++    if (!$this->requestStack->getCurrentRequest()->isMethodCacheable() || !$cid = $this->createCacheID($elements)) {
+       return FALSE;
+     }
+ 
+diff --git a/core/lib/Drupal/Core/Render/Renderer.php b/core/lib/Drupal/Core/Render/Renderer.php
+index 4bbffc3..37767dc 100644
+--- a/core/lib/Drupal/Core/Render/Renderer.php
++++ b/core/lib/Drupal/Core/Render/Renderer.php
+@@ -338,9 +338,9 @@ protected function doRender(&$elements, $is_root_call = FALSE) {
+     // If instructed to create a placeholder, and a #lazy_builder callback is
+     // present (without such a callback, it would be impossible to replace the
+     // placeholder), replace the current element with a placeholder.
+-    // @todo remove the isMethodSafe() check when
++    // @todo remove the isMethodCacheable() check when
+     //       https://www.drupal.org/node/2367555 lands.
+-    if (isset($elements['#create_placeholder']) && $elements['#create_placeholder'] === TRUE && $this->requestStack->getCurrentRequest()->isMethodSafe()) {
++    if (isset($elements['#create_placeholder']) && $elements['#create_placeholder'] === TRUE && $this->requestStack->getCurrentRequest()->isMethodCacheable()) {
+       if (!isset($elements['#lazy_builder'])) {
+         throw new \LogicException('When #create_placeholder is set, a #lazy_builder callback must be present as well.');
+       }
+diff --git a/core/lib/Drupal/Core/TypedData/Validation/ExecutionContext.php b/core/lib/Drupal/Core/TypedData/Validation/ExecutionContext.php
+index a20fa52..100718e 100644
+--- a/core/lib/Drupal/Core/TypedData/Validation/ExecutionContext.php
++++ b/core/lib/Drupal/Core/TypedData/Validation/ExecutionContext.php
+@@ -21,7 +21,7 @@
+ class ExecutionContext implements ExecutionContextInterface {
+ 
+   /**
+-   * @var \Symfony\Component\Validator\ValidatorInterface
++   * @var \Symfony\Component\Validator\Validator\ValidatorInterface
+    */
+   protected $validator;
+ 
+diff --git a/core/modules/big_pipe/src/Render/Placeholder/BigPipeStrategy.php b/core/modules/big_pipe/src/Render/Placeholder/BigPipeStrategy.php
+index 91ad604..1690424 100644
+--- a/core/modules/big_pipe/src/Render/Placeholder/BigPipeStrategy.php
++++ b/core/modules/big_pipe/src/Render/Placeholder/BigPipeStrategy.php
+@@ -108,7 +108,7 @@ public function processPlaceholders(array $placeholders) {
+     $request = $this->requestStack->getCurrentRequest();
+ 
+     // @todo remove this check when https://www.drupal.org/node/2367555 lands.
+-    if (!$request->isMethodSafe()) {
++    if (!$request->isMethodCacheable()) {
+       return [];
+     }
+ 
+diff --git a/core/modules/big_pipe/tests/src/Unit/Render/Placeholder/BigPipeStrategyTest.php b/core/modules/big_pipe/tests/src/Unit/Render/Placeholder/BigPipeStrategyTest.php
+index f0f40ba..9de0942 100644
+--- a/core/modules/big_pipe/tests/src/Unit/Render/Placeholder/BigPipeStrategyTest.php
++++ b/core/modules/big_pipe/tests/src/Unit/Render/Placeholder/BigPipeStrategyTest.php
+@@ -47,7 +47,7 @@ public function testProcessPlaceholders(array $placeholders, $method, $route_mat
+     $big_pipe_strategy = new BigPipeStrategy($session_configuration->reveal(), $request_stack->reveal(), $route_match->reveal());
+     $processed_placeholders = $big_pipe_strategy->processPlaceholders($placeholders);
+ 
+-    if ($request->isMethodSafe() && !$route_match_has_no_big_pipe_option && $request_has_session) {
++    if ($request->isMethodCacheable() && !$route_match_has_no_big_pipe_option && $request_has_session) {
+       $this->assertSameSize($expected_big_pipe_placeholders, $processed_placeholders, 'BigPipe is able to deliver all placeholders.');
+       foreach (array_keys($placeholders) as $placeholder) {
+         $this->assertSame($expected_big_pipe_placeholders[$placeholder], $processed_placeholders[$placeholder], "Verifying how BigPipeStrategy handles the placeholder '$placeholder'");
+diff --git a/core/modules/block_content/src/Tests/BlockContentCacheTagsTest.php b/core/modules/block_content/src/Tests/BlockContentCacheTagsTest.php
+index 7eefdc7..5db7b2a 100644
+--- a/core/modules/block_content/src/Tests/BlockContentCacheTagsTest.php
++++ b/core/modules/block_content/src/Tests/BlockContentCacheTagsTest.php
+@@ -76,7 +76,7 @@ public function testBlock() {
+     // Render the block.
+     // @todo The request stack manipulation won't be necessary once
+     //   https://www.drupal.org/node/2367555 is fixed and the
+-    //   corresponding $request->isMethodSafe() checks are removed from
++    //   corresponding $request->isMethodCacheable() checks are removed from
+     //   Drupal\Core\Render\Renderer.
+     $request_stack = $this->container->get('request_stack');
+     $request_stack->push(new Request());
+diff --git a/core/modules/file/config/optional/views.view.files.yml b/core/modules/file/config/optional/views.view.files.yml
+index e5edee2..053b72d 100644
+--- a/core/modules/file/config/optional/views.view.files.yml
++++ b/core/modules/file/config/optional/views.view.files.yml
+@@ -565,7 +565,7 @@ display:
+           decimal: .
+           separator: ','
+           format_plural: true
+-          format_plural_string: "1 place\x03@count places"
++          format_plural_string: !!binary MSBwbGFjZQNAY291bnQgcGxhY2Vz
+           prefix: ''
+           suffix: ''
+           plugin_id: numeric
+@@ -1007,7 +1007,7 @@ display:
+           decimal: .
+           separator: ','
+           format_plural: false
+-          format_plural_string: "1\x03@count"
++          format_plural_string: !!binary MQNAY291bnQ=
+           prefix: ''
+           suffix: ''
+           plugin_id: numeric
+diff --git a/core/modules/node/node.module b/core/modules/node/node.module
+index 5c86a13..5c67317 100644
+--- a/core/modules/node/node.module
++++ b/core/modules/node/node.module
+@@ -1080,7 +1080,7 @@ function node_query_node_access_alter(AlterableInterface $query) {
+   // context.
+   $request = \Drupal::requestStack()->getCurrentRequest();
+   $renderer = \Drupal::service('renderer');
+-  if ($request->isMethodSafe() && $renderer->hasRenderContext()) {
++  if ($request->isMethodCacheable() && $renderer->hasRenderContext()) {
+     $build = ['#cache' => ['contexts' => ['user.node_grants:' . $op]]];
+     $renderer->render($build);
+   }
+diff --git a/core/modules/page_cache/src/StackMiddleware/PageCache.php b/core/modules/page_cache/src/StackMiddleware/PageCache.php
+index 3a031db..120b01e 100644
+--- a/core/modules/page_cache/src/StackMiddleware/PageCache.php
++++ b/core/modules/page_cache/src/StackMiddleware/PageCache.php
+@@ -284,7 +284,10 @@ protected function storeResponse(Request $request, Response $response) {
+       }
+     }
+     else {
+-      $date = $response->getExpires()->getTimestamp();
++      // The getExpires method could return NULL if Expires header is not set, so
++      // the returned value needs to be checked before calling getTimestamp.
++      $expires = $response->getExpires();
++      $date = ($expires == NULL) ? 0 : $expires->getTimestamp();
+       $expire = ($date > $request_time) ? $date : Cache::PERMANENT;
+     }
+ 
+diff --git a/core/modules/rest/src/EventSubscriber/ResourceResponseSubscriber.php b/core/modules/rest/src/EventSubscriber/ResourceResponseSubscriber.php
+index 5cb887b..86935ea 100644
+--- a/core/modules/rest/src/EventSubscriber/ResourceResponseSubscriber.php
++++ b/core/modules/rest/src/EventSubscriber/ResourceResponseSubscriber.php
+@@ -96,7 +96,7 @@ public function getResponseFormat(RouteMatchInterface $route_match, Request $req
+     $route = $route_match->getRouteObject();
+     $acceptable_request_formats = $route->hasRequirement('_format') ? explode('|', $route->getRequirement('_format')) : [];
+     $acceptable_content_type_formats = $route->hasRequirement('_content_type_format') ? explode('|', $route->getRequirement('_content_type_format')) : [];
+-    $acceptable_formats = $request->isMethodSafe() ? $acceptable_request_formats : $acceptable_content_type_formats;
++    $acceptable_formats = $request->isMethodCacheable() ? $acceptable_request_formats : $acceptable_content_type_formats;
+ 
+     $requested_format = $request->getRequestFormat();
+     $content_type_format = $request->getContentType();
+diff --git a/core/modules/rest/tests/src/Unit/CollectRoutesTest.php b/core/modules/rest/tests/src/Unit/CollectRoutesTest.php
+index c55ea3b..5c4de33 100644
+--- a/core/modules/rest/tests/src/Unit/CollectRoutesTest.php
++++ b/core/modules/rest/tests/src/Unit/CollectRoutesTest.php
+@@ -141,8 +141,8 @@ public function testRoutesRequirements() {
+     $requirements_1 = $this->routes->get('test_1')->getRequirements();
+     $requirements_2 = $this->routes->get('view.test_view.page_1')->getRequirements();
+ 
+-    $this->assertEquals(count($requirements_1), 0, 'First route has no requirement.');
+-    $this->assertEquals(count($requirements_2), 2, 'Views route with rest export had the format and method requirements added.');
++    $this->assertEquals(0, count($requirements_1), 'First route has no requirement.');
++    $this->assertEquals(1, count($requirements_2), 'Views route with rest export had the format requirement added.');
+ 
+     // Check auth options.
+     $auth = $this->routes->get('view.test_view.page_1')->getOption('_auth');
+diff --git a/core/modules/rest/tests/src/Unit/EventSubscriber/ResourceResponseSubscriberTest.php b/core/modules/rest/tests/src/Unit/EventSubscriber/ResourceResponseSubscriberTest.php
+index 87c9059..b10fbfe 100644
+--- a/core/modules/rest/tests/src/Unit/EventSubscriber/ResourceResponseSubscriberTest.php
++++ b/core/modules/rest/tests/src/Unit/EventSubscriber/ResourceResponseSubscriberTest.php
+@@ -79,11 +79,6 @@ public function providerTestSerialization() {
+    * @dataProvider providerTestResponseFormat
+    */
+   public function testResponseFormat($methods, array $supported_formats, $request_format, array $request_headers, $request_body, $expected_response_format, $expected_response_content_type, $expected_response_content) {
+-    $parameters = [];
+-    if ($request_format !== FALSE) {
+-      $parameters['_format'] = $request_format;
+-    }
+-
+     foreach ($request_headers as $key => $value) {
+       unset($request_headers[$key]);
+       $key = strtoupper(str_replace('-', '_', $key));
+@@ -91,8 +86,13 @@ public function testResponseFormat($methods, array $supported_formats, $request_
+     }
+ 
+     foreach ($methods as $method) {
+-      $request = Request::create('/rest/test', $method, $parameters, [], [], $request_headers, $request_body);
+-      $route_requirement_key_format = $request->isMethodSafe() ? '_format' : '_content_type_format';
++      $request = Request::create('/rest/test', $method, [], [], [], $request_headers, $request_body);
++      // \Drupal\Core\StackMiddleware\NegotiationMiddleware normally takes care
++      // of this so we'll hard code it here.
++      if ($request_format) {
++        $request->setRequestFormat($request_format);
++      }
++      $route_requirement_key_format = $request->isMethodCacheable() ? '_format' : '_content_type_format';
+       $route_match = new RouteMatch('test', new Route('/rest/test', ['_rest_resource_config' => $this->randomMachineName()], [$route_requirement_key_format => implode('|', $supported_formats)]));
+ 
+       $resource_response_subscriber = new ResourceResponseSubscriber(
+@@ -116,11 +116,6 @@ public function testResponseFormat($methods, array $supported_formats, $request_
+   public function testOnResponseWithCacheableResponse($methods, array $supported_formats, $request_format, array $request_headers, $request_body, $expected_response_format, $expected_response_content_type, $expected_response_content) {
+     $rest_config_name = $this->randomMachineName();
+ 
+-    $parameters = [];
+-    if ($request_format !== FALSE) {
+-      $parameters['_format'] = $request_format;
+-    }
+-
+     foreach ($request_headers as $key => $value) {
+       unset($request_headers[$key]);
+       $key = strtoupper(str_replace('-', '_', $key));
+@@ -128,8 +123,13 @@ public function testOnResponseWithCacheableResponse($methods, array $supported_f
+     }
+ 
+     foreach ($methods as $method) {
+-      $request = Request::create('/rest/test', $method, $parameters, [], [], $request_headers, $request_body);
+-      $route_requirement_key_format = $request->isMethodSafe() ? '_format' : '_content_type_format';
++      $request = Request::create('/rest/test', $method, [], [], [], $request_headers, $request_body);
++      // \Drupal\Core\StackMiddleware\NegotiationMiddleware normally takes care
++      // of this so we'll hard code it here.
++      if ($request_format) {
++        $request->setRequestFormat($request_format);
++      }
++      $route_requirement_key_format = $request->isMethodCacheable() ? '_format' : '_content_type_format';
+       $route_match = new RouteMatch('test', new Route('/rest/test', ['_rest_resource_config' => $rest_config_name], [$route_requirement_key_format => implode('|', $supported_formats)]));
+ 
+       // The RequestHandler must return a ResourceResponseInterface object.
+@@ -166,11 +166,6 @@ public function testOnResponseWithCacheableResponse($methods, array $supported_f
+   public function testOnResponseWithUncacheableResponse($methods, array $supported_formats, $request_format, array $request_headers, $request_body, $expected_response_format, $expected_response_content_type, $expected_response_content) {
+     $rest_config_name = $this->randomMachineName();
+ 
+-    $parameters = [];
+-    if ($request_format !== FALSE) {
+-      $parameters['_format'] = $request_format;
+-    }
+-
+     foreach ($request_headers as $key => $value) {
+       unset($request_headers[$key]);
+       $key = strtoupper(str_replace('-', '_', $key));
+@@ -178,8 +173,13 @@ public function testOnResponseWithUncacheableResponse($methods, array $supported
+     }
+ 
+     foreach ($methods as $method) {
+-      $request = Request::create('/rest/test', $method, $parameters, [], [], $request_headers, $request_body);
+-      $route_requirement_key_format = $request->isMethodSafe() ? '_format' : '_content_type_format';
++      $request = Request::create('/rest/test', $method, [], [], [], $request_headers, $request_body);
++      // \Drupal\Core\StackMiddleware\NegotiationMiddleware normally takes care
++      // of this so we'll hard code it here.
++      if ($request_format) {
++        $request->setRequestFormat($request_format);
++      }
++      $route_requirement_key_format = $request->isMethodCacheable() ? '_format' : '_content_type_format';
+       $route_match = new RouteMatch('test', new Route('/rest/test', ['_rest_resource_config' => $rest_config_name], [$route_requirement_key_format => implode('|', $supported_formats)]));
+ 
+       // The RequestHandler must return a ResourceResponseInterface object.
+diff --git a/core/modules/system/tests/modules/form_test/src/Form/FormTestStorageForm.php b/core/modules/system/tests/modules/form_test/src/Form/FormTestStorageForm.php
+index 948c592..fb28c65 100644
+--- a/core/modules/system/tests/modules/form_test/src/Form/FormTestStorageForm.php
++++ b/core/modules/system/tests/modules/form_test/src/Form/FormTestStorageForm.php
+@@ -86,7 +86,7 @@ public function buildForm(array $form, FormStateInterface $form_state) {
+     //   that issue.
+     if ($this->getRequest()->get('immutable')) {
+       $form_state->addBuildInfo('immutable', TRUE);
+-      if ($this->getRequest()->get('cache') && $this->getRequest()->isMethodSafe()) {
++      if ($this->getRequest()->get('cache') && $this->getRequest()->isMethodCacheable()) {
+         $form_state->setRequestMethod('FAKE');
+         $form_state->setCached();
+       }
+diff --git a/core/modules/system/tests/modules/theme_test/src/EventSubscriber/ThemeTestSubscriber.php b/core/modules/system/tests/modules/theme_test/src/EventSubscriber/ThemeTestSubscriber.php
+index d5f9110..bc8d1d0 100644
+--- a/core/modules/system/tests/modules/theme_test/src/EventSubscriber/ThemeTestSubscriber.php
++++ b/core/modules/system/tests/modules/theme_test/src/EventSubscriber/ThemeTestSubscriber.php
+@@ -17,7 +17,8 @@ class ThemeTestSubscriber implements EventSubscriberInterface {
+   /**
+    * The used container.
+    *
+-   * @var \Symfony\Component\DependencyInjection\IntrospectableContainerInterface
++   * @todo This variable is never initialzed, so we don't know what it is.
++   *   See https://www.drupal.org/node/2721315
+    */
+   protected $container;
+ 
+diff --git a/core/tests/Drupal/Tests/Component/DependencyInjection/ContainerTest.php b/core/tests/Drupal/Tests/Component/DependencyInjection/ContainerTest.php
+index 3c89804..eb7eb1b 100644
+--- a/core/tests/Drupal/Tests/Component/DependencyInjection/ContainerTest.php
++++ b/core/tests/Drupal/Tests/Component/DependencyInjection/ContainerTest.php
+@@ -663,47 +663,6 @@ public function testInitializedForAliases() {
+   }
+ 
+   /**
+-   * Tests that unsupported methods throw an Exception.
+-   *
+-   * @covers ::enterScope
+-   * @covers ::leaveScope
+-   * @covers ::addScope
+-   * @covers ::hasScope
+-   * @covers ::isScopeActive
+-   *
+-   * @expectedException \BadMethodCallException
+-   *
+-   * @dataProvider scopeExceptionTestProvider
+-   */
+-  public function testScopeFunctionsWithException($method, $argument) {
+-    $callable = array(
+-      $this->container,
+-      $method,
+-    );
+-
+-    $callable($argument);
+-  }
+-
+-  /**
+-   * Data provider for scopeExceptionTestProvider().
+-   *
+-   * @return array[]
+-   *   Returns per data set an array with:
+-   *     - method name to call
+-   *     - argument to pass
+-   */
+-  public function scopeExceptionTestProvider() {
+-    $scope = $this->prophesize('\Symfony\Component\DependencyInjection\ScopeInterface')->reveal();
+-    return array(
+-      array('enterScope', 'test_scope'),
+-      array('leaveScope', 'test_scope'),
+-      array('hasScope', 'test_scope'),
+-      array('isScopeActive', 'test_scope'),
+-      array('addScope', $scope),
+-    );
+-  }
+-
+-  /**
+    * Tests that Container::getServiceIds() works properly.
+    *
+    * @covers ::getServiceIds
+diff --git a/core/tests/Drupal/Tests/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumperTest.php b/core/tests/Drupal/Tests/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumperTest.php
+index 49b6556..cc4c630 100644
+--- a/core/tests/Drupal/Tests/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumperTest.php
++++ b/core/tests/Drupal/Tests/Component/DependencyInjection/Dumper/OptimizedPhpArrayDumperTest.php
+@@ -245,7 +245,6 @@ public function getDefinitionsDataProvider() {
+         'arguments_count' => 0,
+         'properties' => array(),
+         'calls' => array(),
+-        'scope' => ContainerInterface::SCOPE_CONTAINER,
+         'shared' => TRUE,
+         'factory' => FALSE,
+         'configurator' => FALSE,
+@@ -358,11 +357,6 @@ public function getDefinitionsDataProvider() {
+       ) + $base_service_definition;
+ 
+       $service_definitions[] = array(
+-        'scope' => ContainerInterface::SCOPE_PROTOTYPE,
+-        'shared' => FALSE,
+-      ) + $base_service_definition;
+-
+-      $service_definitions[] = array(
+           'shared' => FALSE,
+         ) + $base_service_definition;
+ 
+@@ -404,7 +398,6 @@ public function getDefinitionsDataProvider() {
+         $definition->getArguments()->willReturn($service_definition['arguments']);
+         $definition->getProperties()->willReturn($service_definition['properties']);
+         $definition->getMethodCalls()->willReturn($service_definition['calls']);
+-        $definition->getScope()->willReturn($service_definition['scope']);
+         $definition->isShared()->willReturn($service_definition['shared']);
+         $definition->getDecoratedService()->willReturn(NULL);
+         $definition->getFactory()->willReturn($service_definition['factory']);
+@@ -437,9 +430,6 @@ public function getDefinitionsDataProvider() {
+           }
+         }
+ 
+-        // Remove any remaining scope.
+-        unset($filtered_service_definition['scope']);
+-
+         if (isset($filtered_service_definition['public']) && $filtered_service_definition['public'] === FALSE) {
+           $services_provided[] = array(
+             array('foo_service' => $definition->reveal()),
+@@ -478,22 +468,6 @@ protected function getServiceCall($id, $invalid_behavior = ContainerInterface::E
+     }
+ 
+     /**
+-     * Tests that the correct InvalidArgumentException is thrown for getScope().
+-     *
+-     * @covers ::getServiceDefinition
+-     *
+-     * @expectedException \Symfony\Component\DependencyInjection\Exception\InvalidArgumentException
+-     */
+-    public function testGetServiceDefinitionWithInvalidScope() {
+-      $bar_definition = new Definition('\stdClass');
+-      $bar_definition->setScope('foo_scope');
+-      $services['bar'] = $bar_definition;
+-
+-      $this->containerBuilder->getDefinitions()->willReturn($services);
+-      $this->dumper->getArray();
+-    }
+-
+-    /**
+      * Tests that references to aliases work correctly.
+      *
+      * @covers ::getReferenceCall
+diff --git a/core/tests/Drupal/Tests/Component/EventDispatcher/ContainerAwareEventDispatcherTest.php b/core/tests/Drupal/Tests/Component/EventDispatcher/ContainerAwareEventDispatcherTest.php
+index 7bc2382..ea0685a 100644
+--- a/core/tests/Drupal/Tests/Component/EventDispatcher/ContainerAwareEventDispatcherTest.php
++++ b/core/tests/Drupal/Tests/Component/EventDispatcher/ContainerAwareEventDispatcherTest.php
+@@ -6,9 +6,10 @@
+ use Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher;
+ use Symfony\Component\DependencyInjection\Container;
+ use Symfony\Component\DependencyInjection\ContainerBuilder;
++use Symfony\Component\DependencyInjection\ContainerInterface;
+ use Symfony\Component\EventDispatcher\Tests\CallableClass;
+-use Symfony\Component\EventDispatcher\Tests\TestEventListener;
+ use Symfony\Component\EventDispatcher\Tests\ContainerAwareEventDispatcherTest as SymfonyContainerAwareEventDispatcherTest;
++use Symfony\Component\EventDispatcher\Tests\TestEventListener;
+ 
+ /**
+  * Unit tests for the ContainerAwareEventDispatcher.
+@@ -37,7 +38,7 @@ public function testGetListenersWithCallables()
+         // When passing in callables exclusively as listeners into the event
+         // dispatcher constructor, the event dispatcher must not attempt to
+         // resolve any services.
+-        $container = $this->getMock('Symfony\Component\DependencyInjection\IntrospectableContainerInterface');
++        $container = $this->getMock(ContainerInterface::class);
+         $container->expects($this->never())->method($this->anything());
+ 
+         $firstListener = new CallableClass();
+@@ -72,7 +73,7 @@ public function testDispatchWithCallables()
+         // When passing in callables exclusively as listeners into the event
+         // dispatcher constructor, the event dispatcher must not attempt to
+         // resolve any services.
+-        $container = $this->getMock('Symfony\Component\DependencyInjection\IntrospectableContainerInterface');
++        $container = $this->getMock(ContainerInterface::class);
+         $container->expects($this->never())->method($this->anything());
+ 
+         $firstListener = new CallableClass();
+diff --git a/core/tests/Drupal/Tests/Core/Entity/ContentEntityBaseUnitTest.php b/core/tests/Drupal/Tests/Core/Entity/ContentEntityBaseUnitTest.php
+index cb73533..24e23dd 100644
+--- a/core/tests/Drupal/Tests/Core/Entity/ContentEntityBaseUnitTest.php
++++ b/core/tests/Drupal/Tests/Core/Entity/ContentEntityBaseUnitTest.php
+@@ -10,6 +10,7 @@
+ use Drupal\Core\TypedData\TypedDataManagerInterface;
+ use Drupal\Tests\UnitTestCase;
+ use Drupal\Core\Language\Language;
++use Symfony\Component\Validator\Validator\ValidatorInterface;
+ 
+ /**
+  * @coversDefaultClass \Drupal\Core\Entity\ContentEntityBase
+@@ -321,7 +322,7 @@ public function testPreSaveRevision() {
+    * @covers ::validate
+    */
+   public function testValidate() {
+-    $validator = $this->getMock('\Symfony\Component\Validator\ValidatorInterface');
++    $validator = $this->getMock(ValidatorInterface::class);
+     /** @var \Symfony\Component\Validator\ConstraintViolationList|\PHPUnit_Framework_MockObject_MockObject $empty_violation_list */
+     $empty_violation_list = $this->getMockBuilder('\Symfony\Component\Validator\ConstraintViolationList')
+       ->setMethods(NULL)
+@@ -357,7 +358,7 @@ public function testValidate() {
+    * @expectedExceptionMessage Entity validation was skipped.
+    */
+   public function testRequiredValidation() {
+-    $validator = $this->getMock('\Symfony\Component\Validator\ValidatorInterface');
++    $validator = $this->getMock(ValidatorInterface::class);
+     /** @var \Symfony\Component\Validator\ConstraintViolationList|\PHPUnit_Framework_MockObject_MockObject $empty_violation_list */
+     $empty_violation_list = $this->getMockBuilder('\Symfony\Component\Validator\ConstraintViolationList')
+       ->setMethods(NULL)
+diff --git a/core/tests/Drupal/Tests/Core/EventSubscriber/DefaultExceptionSubscriberTest.php b/core/tests/Drupal/Tests/Core/EventSubscriber/DefaultExceptionSubscriberTest.php
+index 541d136..61f0cd1 100644
+--- a/core/tests/Drupal/Tests/Core/EventSubscriber/DefaultExceptionSubscriberTest.php
++++ b/core/tests/Drupal/Tests/Core/EventSubscriber/DefaultExceptionSubscriberTest.php
+@@ -25,7 +25,10 @@ public function testOnExceptionWithUnknownFormat() {
+ 
+     // Format 'bananas' requested, yet only 'json' allowed.
+     $kernel = $this->prophesize(HttpKernelInterface::class);
+-    $request = Request::create('/test?_format=bananas');
++    $request = Request::create('/test');
++    // \Drupal\Core\StackMiddleware\NegotiationMiddleware normally takes care
++    // of this so we'll hard code it here.
++    $request->setRequestFormat('bananas');
+     $e = new MethodNotAllowedHttpException(['json'], 'test message');
+     $event = new GetResponseForExceptionEvent($kernel->reveal(), $request, 'GET', $e);
+     $subscriber = new DefaultExceptionSubscriber($config_factory);

@@ -76,6 +76,7 @@ var/log
 var/tmp
 app/cache
 app/logs
+app/config/drupal
 $WWW_DIR/sites/*/files"
 
 DRUSH_WRITABLE="

@@ -6,6 +6,9 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 
 class AppKernel extends DrupalAppKernel
 {
+    /**
+     * {@inheritdoc}
+     */
     public function registerBundles()
     {
         return [
@@ -23,7 +26,7 @@ class AppKernel extends DrupalAppKernel
     }
 
     /**
-     * {inheritdoc}
+     * {@inheritdoc}
      */
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
@@ -41,5 +44,15 @@ class AppKernel extends DrupalAppKernel
         }
 
         $loader->load($customConfigFile);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDrupalConfigDirectory()
+    {
+        return [
+            'sync' => $this->rootDir.'/config/drupal/sync',
+        ];
     }
 }
