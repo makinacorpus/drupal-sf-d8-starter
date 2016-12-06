@@ -1,6 +1,7 @@
 {
-    "name": "makinacorpus/drupal-8-ucms",
+    "name": "makinacorpus/drupal-sf-d8-starter",
     "description": "Testing project for porting Drupal-ucms to Drupal 8",
+    "homepage" : "http://github.com/makinacorpus/drupal-sf-d8-starter",
     "type": "project",
     "license": "proprietary",
     "authors" : [{
@@ -22,6 +23,8 @@
             "url" : "git@github.com:makinacorpus/autocomplete-bundle.git"
         },{
             "type" : "vcs",
+            "url" : "git@github.com:makinacorpus/drupal-sf-d8.git"
+        },{            "type" : "vcs",
             "url" : "git@github.com:makinacorpus/drupal-ucms.git"
         }, {
             "type" : "vcs",
@@ -41,6 +44,7 @@
         "jbroadway/urlify" : "^1.0",
         "makinacorpus/apubsub" : "4.0.0",
         "makinacorpus/autocomplete-bundle": "dev-master",
+        "makinacorpus/drupal-sf-d8": "dev-master",
         "makinacorpus/filechunk-bundle": "dev-master",
         "makinacorpus/iban-bundle": "^1.0",
         "monolog/monolog" : "^1.17",
