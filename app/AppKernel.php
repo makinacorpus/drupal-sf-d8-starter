@@ -1,6 +1,7 @@
 <?php
 
 use MakinaCorpus\Drupal\Sf\DrupalAppKernel;
+use MakinaCorpus\RedisBundle\Drupal8\RedisStandaloneCompilerPass;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 
@@ -20,6 +21,7 @@ class AppKernel extends DrupalAppKernel
             new \MakinaCorpus\AutocompleteBundle\AutocompleteBundle(),
             new \MakinaCorpus\FilechunkBundle\FilechunkBundle(),
             new \MakinaCorpus\IbanBundle\IbanBundle(),
+            new \MakinaCorpus\RedisBundle\RedisBundle(),
             // new \MakinaCorpus\Saur\FormBundle\SaurFormBundle(),
             new \EWZ\Bundle\RecaptchaBundle\EWZRecaptchaBundle(),
         ];
@@ -54,5 +56,14 @@ class AppKernel extends DrupalAppKernel
         return [
             'sync' => $this->rootDir.'/config/drupal/sync',
         ];
+    }
+
+    public function buildContainer()
+    {
+        $container = parent::buildContainer();
+
+        $container->addCompilerPass(new RedisStandaloneCompilerPass());
+
+        return $container;
     }
 }

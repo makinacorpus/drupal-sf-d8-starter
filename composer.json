@@ -29,6 +29,12 @@
         }, {
             "type" : "vcs",
             "url" : "git@github.com:makinacorpus/filechunk-bundle.git"
+        }, {
+            "type" : "vcs",
+            "url" : "git@github.com:makinacorpus/redis-bundle.git"
+        }, {
+            "type": "vcs",
+            "url":  "git@github.com:pounard/php-config.git"
         }
     ],
     "require": {
@@ -45,16 +51,22 @@
         "makinacorpus/apubsub" : "4.0.0",
         "makinacorpus/autocomplete-bundle": "dev-master",
         "makinacorpus/drupal-sf-d8": "dev-master",
+        "makinacorpus/drupal-ucms": "8.x-dev",
         "makinacorpus/filechunk-bundle": "dev-master",
         "makinacorpus/iban-bundle": "^1.0",
+        "makinacorpus/redis-bundle": "dev-master",
         "monolog/monolog" : "^1.17",
         "oyejorge/less.php": "v1.7.0.10",
         "pear/console_table" : "dev-master as 1.3.0",
+        "php-config/php-config": "dev-master",
         "ramsey/uuid" : "~3.5",
         "symfony/monolog-bundle": "^2.11",
         "symfony/symfony": "3.2.0 as 2.8.13",
         "twig/extensions" : "~1.3",
-        "twig/twig" : "~1.20|~2.0"
+        "twig/twig" : "~1.20|~2.0",
+        "psr/cache": "^1.0",
+        "symfony/dependency-injection": "^3.2",
+        "symfony/event-dispatcher": "^3.2"
     },
     "require-dev": {
         "phpunit/phpunit": "~5"
@@ -105,7 +117,12 @@
             "app/AppKernel.php"
         ],
         "psr-4" : {
-            "MakinaCorpus\\Drupal\\Sf\\" : "lib/vendor/makinacorpus/drupal-sf-d8"
+            "Drupal\\FunctionnalJavascriptTests\\" : "web/core/tests/Drupal/FunctionnalJavascriptTests",
+            "Drupal\\FunctionnalTests\\" : "web/core/tests/Drupal/FunctionnalTests",
+            "Drupal\\KernelTests\\" : "web/core/tests/Drupal/KernelTests",
+            "Drupal\\Tests\\" : "web/core/tests/Drupal/Tests",
+            "MakinaCorpus\\Drupal\\Sf\\" : "lib/vendor/makinacorpus/drupal-sf-d8",
+            "MakinaCorpus\\RedisBundle\\" : "lib/vendor/makinacorpus/redis-bundle"
         },
         "exclude-from-classmap": ["**/Tests/"]
     }

@@ -50,3 +50,12 @@ ewz_recaptcha:
     ajax: false
     public_key: 6LfBhAwUAAAAAMR7rWIZIPKEMeSf2wVdZmDGR_sk
     private_key: 6LfBhAwUAAAAAChBr5KAkyDTu4iJT021Nzgp-eWg
+
+redis:
+    client:
+        default:
+            host: tcp://127.0.0.1
+            type: phpredis
+            persistent: false
+            cluster: false
+            timeout: 0.5

@@ -1,0 +1,2 @@
+imports:
+    - { resource: '../../lib/vendor/makinacorpus/redis-bundle/Resources/config/drupal/standalone.services.yml' }
