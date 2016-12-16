@@ -1,3 +1,28 @@
 parameters:
-#    saur.form.url.env: https://internetclientele-recette-waf.saur.fr/api
-    saur.form.url.env: http://10.1.3.1:8000/api
+    hash_salt: 'cHFS17Q_TbGMXfFA5gzzA3Zql_HG0kZHtYDetu2Zjcx1tRcL0X00h71krAMMPkU1H3C--JBMGg'
+    update_free_access: false
+    file_scan_ignore_directories: ['node_modules', 'bower_components', 'vendor']
+    install_profile: 'standard'
+    databases:
+        default:
+            default:
+                database: d8ucms
+                username: d8ucms
+                password: d8ucms
+                prefix: ''
+                host: localhost
+                port: 5432
+                namespace: Drupal\Core\Database\Driver\pgsql
+                driver: pgsql
+    redis.servers:
+        default:
+            host: 'tcp://127.0.0.1'
+            type: 'phpredis'
+            persistent: false
+            cluster: false
+            timeout: 0.5
+    cache:
+        default: cache.backend.redis
+        bootstrap: 'cache.backend.chainedfast'
+        discovery: 'cache.backend.chainedfast'
+        config: 'cache.backend.chainedfast'

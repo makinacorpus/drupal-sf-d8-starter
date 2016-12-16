@@ -1,2 +1,41 @@
 parameters:
-    saur.form.url.env: https://internetclientele-recette-waf.saur.fr/api
+
+    # Those parameters are Drupal $GLOBALS['settings'] array, we choose to
+    # place them back in the container parameters, and we will proxify the
+    # $GLOBALS['settings'] array to a proxy implementation that will return
+    # container parameters instead.
+    hash_salt: 'cHFS17Q_TbGMXfFA5gzzA3Zql_HG0kZHtYDetu2Zjcx1tRcL0X00h71krAMMPkU1H3C--JBMGg'
+    update_free_access: false
+    file_scan_ignore_directories: ['node_modules', 'bower_components', 'vendor']
+    install_profile: 'standard'
+
+    # Database should live in config, but Drupal cannot process Symfony
+    # configuration using extensions, so let's just put that here.
+    databases:
+        default:
+            default:
+                database: d8ucms
+                username: d8ucms
+                password: d8ucms
+                prefix: ''
+                host: localhost
+                port: 5432
+                namespace: Drupal\Core\Database\Driver\pgsql
+                driver: pgsql
+
+    # Redis configuration, standalone mode (bundle is not supported yet)
+    redis.servers:
+        default:
+            host: 'tcp://127.0.0.1'
+            type: 'phpredis'
+            persistent: false
+            cluster: false
+            timeout: 0.5
+
+    # Set Redis as main cache backend
+    cache:
+        default: cache.backend.redis
+        # Restore chained fast backend else Redis will override it
+        bootstrap: 'cache.backend.chainedfast'
+        discovery: 'cache.backend.chainedfast'
+        config: 'cache.backend.chainedfast'
