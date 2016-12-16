@@ -1,0 +1,14 @@
+uuid: 2c6be967-3d60-4d08-ae76-aad6bc8fff33
+name: 'Drupal 8 0wn3d the right way'
+mail: pri+d8ucms@makina-corpus.com
+slogan: ''
+page:
+  403: ''
+  404: ''
+  front: /node
+admin_compact_mode: false
+weight_select_max: 100
+langcode: en
+default_langcode: en
+_core:
+  default_config_hash: AyT9s8OUcclfALRE_imByOMgtZ19eOlqdF6zI3p7yqo
