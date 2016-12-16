@@ -54,7 +54,7 @@ class AppKernel extends DrupalAppKernel
     public function getDrupalConfigDirectory()
     {
         return [
-            'sync' => $this->rootDir.'/config/drupal/sync',
+            'sync' => $this->rootDir.'/config/drupal',
         ];
     }
 
