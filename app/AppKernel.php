@@ -1,7 +1,7 @@
 <?php
 
 use MakinaCorpus\Drupal\Sf\DrupalAppKernel;
-use MakinaCorpus\RedisBundle\Drupal8\RedisStandaloneCompilerPass;
+use MakinaCorpus\RedisBundle\Drupal8\DependencyInjection\RedisStandaloneCompilerPass;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 
